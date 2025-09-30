@@ -1,6 +1,6 @@
 import time
 from hashlib import sha256
-
+from multiprocessing import Pool, cpu_count
 
 PASSWORDS_TO_BRUTE_FORCE = [
     "b4061a4bcfe1a2cbf78286f3fab2fb578266d1bd16c414c650c5ac04dfc696e1",
@@ -20,8 +20,47 @@ def sha256_hash_str(to_hash: str) -> str:
     return sha256(to_hash.encode("utf-8")).hexdigest()
 
 
+def brute_force_chunk(args):
+    start, end, hashes_set, hash_to_original = args
+    found = []
+    
+    for password_num in range(start, end):
+        password = f"{password_num:08d}"
+        password_hash = sha256_hash_str(password)
+        
+        if password_hash in hashes_set:
+            original_hash = hash_to_original[password_hash]
+            found.append((password, original_hash))
+    
+    return found
+
+
 def brute_force_password() -> None:
-    pass
+    hashes_set = set(PASSWORDS_TO_BRUTE_FORCE)
+    hash_to_original = {h: h for h in PASSWORDS_TO_BRUTE_FORCE}
+    
+    num_processes = cpu_count()
+    total_passwords = 100_000_000
+    chunk_size = total_passwords // num_processes
+    ranges = []
+    
+    for i in range(num_processes):
+        start = i * chunk_size
+        end = start + chunk_size if i < num_processes - 1 else total_passwords
+        ranges.append((start, end, hashes_set, hash_to_original))
+    
+    with Pool(processes=num_processes) as pool:
+        results = pool.map(brute_force_chunk, ranges)
+    
+    found_passwords = []
+    for result in results:
+        found_passwords.extend(result)
+    
+    found_passwords.sort()
+    
+    print(f"Found {len(found_passwords)}/10 passwords:")
+    for password, original_hash in found_passwords:
+        print(f"{password} -> {original_hash}")
 
 
 if __name__ == "__main__":
@@ -29,4 +68,4 @@ if __name__ == "__main__":
     brute_force_password()
     end_time = time.perf_counter()
 
-    print("Elapsed:", end_time - start_time)
+    print(f"Elapsed: {end_time - start_time}")
