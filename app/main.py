@@ -25,7 +25,7 @@ def brute_force_chunk(args: tuple) -> list:
     found = []
 
     for password_num in range(start, end):
-        password = f"{password_num: 08d}"
+        password = f"{password_num:08d}"  # NOQA
         password_hash = sha256_hash_str(password)
 
         if password_hash in hashes_set:
